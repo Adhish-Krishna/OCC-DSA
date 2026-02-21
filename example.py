@@ -2,4 +2,4 @@ x,y=6,5
 z=x+y
 print(z)
 print("hello world")
-print("welcome to python programming") 
+prin("welcome to python programming") 
