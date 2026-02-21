@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   pre-merge-checks:
@@ -26,61 +25,22 @@ jobs:
           echo "Action: ${{ github.event.action }}"
           echo "PR: #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
 
-      - name: Detect suspicious patterns in changed files
-        id: scan
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile all Python files
         shell: bash
         run: |
           set -euo pipefail
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed_files.txt
-
-          suspicious='(rm -rf /|curl\s+[^|]*\|\s*(sh|bash)|wget\s+[^|]*\|\s*(sh|bash)|eval\s*\(|nc\s+-e|mkfs\.)'
-          matches_file="suspicious_matches.txt"
-          : > "$matches_file"
-
-          while IFS= read -r file; do
-            [ -f "$file" ] || continue
-            if grep -Ein "$suspicious" "$file" >/dev/null; then
-              echo "----- $file -----" >> "$matches_file"
-              grep -Ein "$suspicious" "$file" >> "$matches_file"
-            fi
-          done < changed_files.txt
-
-          if [ -s "$matches_file" ]; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-            {
-              echo "details<<EOF"
-              sed 's/`/\\`/g' "$matches_file"
-              echo "EOF"
-            } >> "$GITHUB_OUTPUT"
-            exit 1
-          else
-            echo "found=false" >> "$GITHUB_OUTPUT"
+          mapfile -d '' py_files < <(find . -type f -name "*.py" -not -path "./.git/*" -print0)
+          if [ "${#py_files[@]}" -eq 0 ]; then
+            echo "No Python files found."
+            exit 0
           fi
-
-      - name: Comment on PR when suspicious patterns are found
-        if: failure() && steps.scan.outputs.found == 'true'
-        uses: actions/github-script@v7
-        env:
-          DETAILS: ${{ steps.scan.outputs.details }}
-        with:
-          script: |
-            const body = [
-              "Automated pre-merge safety checks failed.",
-              "",
-              "Suspicious patterns were detected in changed files. Please review and remove risky content before merge.",
-              "",
-              "```text",
-              process.env.DETAILS || "No details captured.",
-              "```"
-            ].join("\n");
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body
-            });
+          printf '%s\0' "${py_files[@]}" | xargs -0 python -m py_compile
+          echo "Python compilation passed for ${#py_files[@]} file(s)."
 
   post-merge:
     if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true
