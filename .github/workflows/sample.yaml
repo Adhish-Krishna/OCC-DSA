@@ -43,6 +43,7 @@ jobs:
           echo "Python compilation passed for ${#py_files[@]} file(s)."
 
   post-merge:
+    needs: pre-merge-checks
     if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:

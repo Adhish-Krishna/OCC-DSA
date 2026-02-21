@@ -1,7 +1,4 @@
-FROM python:3.9-slim
-
+FROM python:3.8-slim
 WORKDIR /app
-
-COPY example.py example.py
-
-CMD [ "python", "example.py" ]
+COPY example.py .
+CMD ["python", "example.py"]
