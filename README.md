@@ -1,1 +1,1 @@
-#Deplying Scalable Applications - One Credit Course
+## Deploying Scalable Applications - One Credit Course
