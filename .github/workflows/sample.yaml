@@ -1,0 +1,14 @@
+name: Sample Workflow
+
+on:
+  pull_request:
+
+jobs:
+  log-on-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log PR event
+        run: |
+          echo "Pull request event detected."
+          echo "Action: ${{ github.event.action }}"
+          echo "PR: #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
