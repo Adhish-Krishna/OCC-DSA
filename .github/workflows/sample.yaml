@@ -1,0 +1,53 @@
+name: Sample Workflow
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  pre-merge-checks:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Log PR event
+        run: |
+          echo "Pull request event detected."
+          echo "Action: ${{ github.event.action }}"
+          echo "PR: #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile all Python files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' py_files < <(find . -type f -name "*.py" -not -path "./.git/*" -print0)
+          if [ "${#py_files[@]}" -eq 0 ]; then
+            echo "No Python files found."
+            exit 0
+          fi
+          printf '%s\0' "${py_files[@]}" | xargs -0 python -m py_compile
+          echo "Python compilation passed for ${#py_files[@]} file(s)."
+
+  post-merge:
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log post-merge event
+        run: |
+          echo "Pull request merged."
+          echo "Merged PR: #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
+          echo "Merged by: ${{ github.event.pull_request.merged_by.login }}"
